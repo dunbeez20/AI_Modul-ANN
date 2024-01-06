@@ -1,0 +1,81 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+const int mqPin = A0; // Hubungkan pin sensor MQ-135 ke pin analog A0
+
+const int fanPWM = 3; // Gunakan pin yang mendukung PWM pada ESP8266 (D1, D2, D5, dll.)
+const int fanRPM = 4; // Pin untuk membaca RPM kipas
+
+const int lcdColumns = 16; // Jumlah kolom pada LCD
+const int lcdRows = 2; // Jumlah baris pada LCD
+LiquidCrystal_I2C lcd(0x27, lcdColumns, lcdRows); 
+
+String statusppm;
+
+void setup() {
+  pinMode(fanPWM, OUTPUT);
+  pinMode(fanRPM, INPUT);
+
+  Serial.begin(9600); // Inisialisasi Serial Monitor dengan baud rate 9600
+
+  Wire.begin(9);      // Inisialisasi komunikasi I2C sebagai Slave dengan alamat 9
+  Wire.onRequest(requestEvent); // Panggil fungsi requestEvent() saat ada permintaan I2C dari Master
+
+  lcd.begin(lcdColumns, lcdRows);
+  lcd.backlight();
+}
+
+void loop() {
+  // Baca nilai analog dari sensor MQ-135
+  // Di Arduino (requestEvent)
+  int ppm = analogRead(mqPin);
+
+  int fanSpeed = map(ppm, 0, 1023, 0, 255);
+  fanSpeed = constrain(fanSpeed, 0, 255);
+
+  analogWrite(fanPWM, fanSpeed);
+
+  Wire.write(lowByte(ppm));
+  Wire.write(highByte(ppm));
+
+  if (ppm >= 0 && ppm <= 200)
+  {
+    statusppm = "baik";
+    fanSpeed += 0;
+  }
+  else if (ppm >= 201 && ppm <= 400)
+  {
+    statusppm = "cukup buruk";
+    fanSpeed += 125;
+  }
+  else if (ppm >= 401)
+  {
+    statusppm = "buruk";
+    fanSpeed += 255;
+  }
+
+  // Mencetak nilai ke Serial Monitor
+  Serial.print("Nilai Sensor : ");
+  Serial.println(ppm);
+
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("PPM: ");
+  lcd.print(ppm);
+
+  lcd.setCursor(0, 1);
+  lcd.print("Status: ");
+  lcd.print(statusppm);
+
+  delay(1000); // Tunda 1 detik sebelum membaca sensor lagi
+}
+
+void requestEvent() {
+  // Baca nilai analog dari sensor MQ-135
+  int sensorValue = analogRead(mqPin);
+
+  // Kirim dua byte nilai sensor ke ESP8266 melalui I2C saat ada permintaan
+  Wire.write(lowByte(sensorValue));
+  Wire.write(highByte(sensorValue));
+}
