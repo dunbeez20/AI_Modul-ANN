@@ -1,0 +1,25 @@
+#include <Wire.h>
+
+const int arduinoAddress = 9; // Alamat I2C Arduino sebagai Slave
+
+void setup() {
+  Serial.begin(9600); // Inisialisasi Serial Monitor dengan baud rate 9600
+  Wire.begin(9);       // Inisialisasi komunikasi I2C sebagai Master
+}
+
+void loop() {
+  Wire.requestFrom(arduinoAddress, 2); // Meminta 2 byte data dari Arduino
+
+  int lowByteValue, highByteValue;
+  if (Wire.available() >= 2) {
+    lowByteValue = Wire.read();
+    highByteValue = Wire.read();
+    
+    int ppm = (highByteValue << 8) | lowByteValue;
+
+    Serial.print("Nilai Sensor MQ-135 dari Arduino: ");
+    Serial.println(ppm);
+  }
+
+  delay(1000); // Tunda 1 detik sebelum meminta data lagi
+}
